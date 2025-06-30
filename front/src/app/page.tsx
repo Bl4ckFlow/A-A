@@ -94,8 +94,6 @@ export default function Home() {
       </section>
 
 
-
-
       {/* About Us Section */}
       <section className="w-full bg-white text-gray-800 px-6 sm:px-12 py-20 relative">
         {/* Title */}
@@ -157,10 +155,10 @@ export default function Home() {
             {/* Right - Group Picture & Description */}
             <div className="w-full md:w-[45%] text-center md:text-left">
               <Image
-                src="/products/1.jpg" // Replace later with actual group photo
+                src="/grp.jpg" // Replace later with actual group photo
                 alt="Founders together"
-                width={300}
-                height={300}
+                width={800}
+                height={400}
                 className="rounded-lg object-cover shadow-lg mb-4"
               />
               <p className="text-sm text-gray-600 max-w-md">
@@ -178,23 +176,65 @@ export default function Home() {
         </div>
       </section>
 
-
-
-
-
-
       {/* Main Content */}
-      <main className="relative h-screen flex flex-col items-center justify-center px-6 py-16 bg-gray-100 text-gray-800">
-        <h2 className="text-3xl font-bold mb-4">Why Choose A&A?</h2>
-        <p className="max-w-2xl text-center text-lg text-gray-600 mb-8">
-          We bring together elegance and quality to help you express your style. Join thousands who trust A&A for their fashion and lifestyle needs.
-        </p>
-        <a
-          href="/inscription"
-          className="bg-gray-900 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg"
-        >
-          Create an Account
-        </a>
+      <main className="relative px-4 sm:px-6 py-20 bg-gray-100 text-gray-800">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4">Why Choose A&A?</h2>
+          <p className="text-lg text-gray-600 mb-8">
+            We bring together elegance and quality to help you express your style.
+          </p>
+          <a
+            href="/inscription"
+            className="bg-gray-900 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg mb-12 inline-block"
+          >
+            Create an Account
+          </a>
+        </div>
+
+        <section className="w-full max-w-xl mx-auto bg-white rounded-lg shadow-lg p-6 sm:p-8">
+          <h3 className="text-2xl font-semibold mb-6 text-center">Contact Us</h3>
+          <form className="flex flex-col space-y-6" action="#" method="POST">
+            <label className="flex flex-col text-gray-700">
+              Name
+              <input
+                type="text"
+                name="name"
+                required
+                className="mt-1 p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Your full name"
+              />
+            </label>
+
+            <label className="flex flex-col text-gray-700">
+              Email
+              <input
+                type="email"
+                name="email"
+                required
+                className="mt-1 p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="you@example.com"
+              />
+            </label>
+
+            <label className="flex flex-col text-gray-700">
+              Message
+              <textarea
+                name="message"
+                required
+                rows={5}
+                className="mt-1 p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Write your message here..."
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-800 text-white font-semibold py-3 rounded-md transition"
+            >
+              Send Message
+            </button>
+          </form>
+        </section>
       </main>
 
       {/* Footer */}

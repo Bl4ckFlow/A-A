@@ -1,12 +1,46 @@
 'use client';
 
 import Image from 'next/image';
-import Navbar from "@/components/Navbar";  
+import Navbar from "@/components/Navbar";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const res = await fetch('http://localhost:3750/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+        return;
+      }
+
+      // Redirect on success (e.g., to dashboard)
+      router.push('/home'); // Change path if needed
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An unexpected error occurred');
+    }
+  };
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
-      {/* Blurred Full Background */}
+      {/* Blurred Background */}
       <div className="absolute inset-0">
         <Image
           src="/insc_bg.jpg"
@@ -26,12 +60,15 @@ export default function LoginPage() {
           {/* Left: Form */}
           <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
             <h2 className="mb-6 text-2xl font-bold text-gray-900">Login to Your Account</h2>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleLogin}>
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
                 />
               </div>
@@ -41,9 +78,17 @@ export default function LoginPage() {
                 <label className="block text-sm font-medium text-gray-700">Password</label>
                 <input
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                   className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
                 />
               </div>
+
+              {/* Error message */}
+              {error && (
+                <div className="text-red-600 text-sm">{error}</div>
+              )}
 
               {/* Submit button */}
               <button
@@ -61,7 +106,7 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* Right: Image (non-blurred) */}
+          {/* Right: Image */}
           <div className="hidden md:block w-1/2 relative">
             <Image
               src="/insc_bg.jpg"

@@ -4,6 +4,7 @@
 -- =============================================
 
 -- Create database
+DROP DATABASE ecommerce_db;
 CREATE DATABASE IF NOT EXISTS ecommerce_db;
 USE ecommerce_db;
 
@@ -18,8 +19,9 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    phone VARCHAR(20),
-    date_of_birth DATE,
+    phone VARCHAR(20) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    gender VARCHAR(255) NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     email_verified BOOLEAN DEFAULT FALSE,
@@ -468,13 +470,14 @@ CREATE TABLE inventory_movements (
 
 DELIMITER //
 
--- User Registration Procedure
 CREATE PROCEDURE RegisterUser(
     IN p_email VARCHAR(255),
     IN p_password_hash VARCHAR(255),
     IN p_first_name VARCHAR(100),
     IN p_last_name VARCHAR(100),
-    IN p_phone VARCHAR(20)
+    IN p_phone VARCHAR(20),
+    IN p_date_of_birth DATE,
+    IN p_gender VARCHAR(255)
 )
 BEGIN
     DECLARE user_exists INT DEFAULT 0;
@@ -485,8 +488,12 @@ BEGIN
     IF user_exists > 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User with this email already exists';
     ELSE
-        INSERT INTO users (email, password_hash, first_name, last_name, phone)
-        VALUES (p_email, p_password_hash, p_first_name, p_last_name, p_phone);
+        INSERT INTO users (
+            email, password_hash, first_name, last_name, phone, date_of_birth, gender
+        )
+        VALUES (
+            p_email, p_password_hash, p_first_name, p_last_name, p_phone, p_date_of_birth, p_gender
+        );
         
         SELECT LAST_INSERT_ID() as user_id;
     END IF;
@@ -827,94 +834,104 @@ BEGIN
     DEALLOCATE PREPARE stmt;
 END //
 
--- Apply Coupon Procedure
+
+-- apply coupon
 CREATE PROCEDURE ApplyCoupon(
     IN p_coupon_code VARCHAR(50),
     IN p_user_id INT,
     IN p_cart_total DECIMAL(10,2)
 )
 BEGIN
+    -- Declare coupon-related variables
     DECLARE v_coupon_id INT;
-    DECLARE v_coupon_type VARCHAR(20);
-    DECLARE v_coupon_value DECIMAL(10,2);
-    DECLARE v_minimum_amount DECIMAL(10,2);
+    DECLARE v_type VARCHAR(20);
+    DECLARE v_value DECIMAL(10,2);
+    DECLARE v_min_amount DECIMAL(10,2);
     DECLARE v_usage_limit INT;
     DECLARE v_usage_count INT;
-    DECLARE v_usage_limit_per_user INT;
-    DECLARE v_user_usage_count INT DEFAULT 0;
-    DECLARE v_discount_amount DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_limit_per_user INT;
     DECLARE v_is_active BOOLEAN;
-    DECLARE v_starts_at TIMESTAMP;
-    DECLARE v_expires_at TIMESTAMP;
-    
-    -- Get coupon details
-    SELECT coupon_id, type, value, minimum_amount, usage_limit, usage_count, 
-           usage_limit_per_user, is_active, starts_at, expires_at
-    INTO v_coupon_id, v_coupon_type, v_coupon_value, v_minimum_amount, 
-         v_usage_limit, v_usage_count, v_usage_limit_per_user, v_is_active, 
-         v_starts_at, v_expires_at
-    FROM coupons 
+    DECLARE v_start TIMESTAMP;
+    DECLARE v_expire TIMESTAMP;
+
+    -- Computed values
+    DECLARE v_user_usage INT DEFAULT 0;
+    DECLARE v_discount DECIMAL(10,2) DEFAULT 0;
+
+    -- Try to get the coupon
+    SELECT 
+        coupon_id, type, value, minimum_amount, 
+        usage_limit, usage_count, usage_limit_per_user,
+        is_active, starts_at, expires_at
+    INTO 
+        v_coupon_id, v_type, v_value, v_min_amount,
+        v_usage_limit, v_usage_count, v_limit_per_user,
+        v_is_active, v_start, v_expire
+    FROM coupons
     WHERE code = p_coupon_code;
-    
-    -- Check if coupon exists
+
+    -- If not found
     IF v_coupon_id IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid coupon code';
     END IF;
-    
-    -- Check if coupon is active
-    IF v_is_active = FALSE THEN
+
+    -- Check active
+    IF NOT v_is_active THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Coupon is not active';
     END IF;
-    
-    -- Check if coupon has started
-    IF v_starts_at IS NOT NULL AND NOW() < v_starts_at THEN
+
+    -- Check date validity
+    IF v_start IS NOT NULL AND NOW() < v_start THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Coupon is not yet valid';
     END IF;
-    
-    -- Check if coupon has expired
-    IF v_expires_at IS NOT NULL AND NOW() > v_expires_at THEN
+
+    IF v_expire IS NOT NULL AND NOW() > v_expire THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Coupon has expired';
     END IF;
-    
-    -- Check minimum amount
-    IF p_cart_total < v_minimum_amount THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = CONCAT('Minimum order amount of 
-    , v_minimum_amount, ' required');
+
+    -- Minimum cart amount
+    IF v_min_amount IS NOT NULL AND p_cart_total < v_min_amount THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Minimum order amount required, check coupon details';
     END IF;
-    
-    -- Check overall usage limit
+
+    -- Global usage limit
     IF v_usage_limit IS NOT NULL AND v_usage_count >= v_usage_limit THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Coupon usage limit exceeded';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Coupon usage limit reached';
     END IF;
-    
-    -- Check per-user usage limit
-    IF p_user_id IS NOT NULL THEN
-        SELECT COUNT(*) INTO v_user_usage_count 
-        FROM coupon_usage 
-        WHERE coupon_id = v_coupon_id AND user_id = p_user_id;
-        
-        IF v_usage_limit_per_user IS NOT NULL AND v_user_usage_count >= v_usage_limit_per_user THEN
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You have exceeded the usage limit for this coupon';
+
+    -- Per-user usage
+    IF v_limit_per_user IS NOT NULL THEN
+        SELECT COUNT(*) INTO v_user_usage
+        FROM coupon_usage
+        WHERE user_id = p_user_id AND coupon_id = v_coupon_id;
+
+        IF v_user_usage >= v_limit_per_user THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You have reached your usage limit for this coupon';
         END IF;
     END IF;
-    
+
     -- Calculate discount
-    CASE v_coupon_type
-        WHEN 'percentage' THEN
-            SET v_discount_amount = p_cart_total * (v_coupon_value / 100);
-        WHEN 'fixed_amount' THEN
-            SET v_discount_amount = v_coupon_value;
-        WHEN 'free_shipping' THEN
-            SET v_discount_amount = 0; -- Handle shipping discount separately
-    END CASE;
-    
-    -- Ensure discount doesn't exceed cart total
-    IF v_discount_amount > p_cart_total THEN
-        SET v_discount_amount = p_cart_total;
+    IF v_type = 'percentage' THEN
+        SET v_discount = p_cart_total * (v_value / 100);
+    ELSEIF v_type = 'fixed_amount' THEN
+        SET v_discount = v_value;
+    ELSEIF v_type = 'free_shipping' THEN
+        SET v_discount = 0; -- Applied during shipping, not cart total
+    ELSE
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Unknown coupon type';
     END IF;
-    
-    SELECT v_coupon_id as coupon_id, v_coupon_type as coupon_type, 
-           v_discount_amount as discount_amount, 'Coupon applied successfully' as message;
+
+    -- Cap discount
+    IF v_discount > p_cart_total THEN
+        SET v_discount = p_cart_total;
+    END IF;
+
+    -- Return the result
+    SELECT 
+        v_coupon_id AS coupon_id,
+        v_type AS coupon_type,
+        v_discount AS discount_amount,
+        'Coupon applied successfully' AS message;
 END //
 
 -- Get Customer Order History Procedure
@@ -1002,8 +1019,8 @@ INSERT INTO product_attributes (name, type, is_required, is_filterable, sort_ord
 ('Dimensions', 'text', FALSE, FALSE, 5);
 
 -- Insert sample admin user (password should be hashed in real implementation)
-INSERT INTO users (email, password_hash, first_name, last_name, is_admin, is_active, email_verified) VALUES
-('admin@yourstore.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', 'User', TRUE, TRUE, TRUE);
+INSERT INTO users (email, password_hash, first_name, last_name, phone, date_of_birth, gender, is_admin, is_active, email_verified) VALUES
+('admin@yourstore.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', 'User', '000-000-0000', '1970-01-01', 'Male', TRUE, TRUE, TRUE);
 
 -- Insert sample categories
 INSERT INTO categories (name, slug, description, is_active, sort_order) VALUES

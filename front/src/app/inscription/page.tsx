@@ -1,9 +1,58 @@
 'use client';
 
+import React, { useState } from 'react';
 import Image from 'next/image';
-import Navbar from "@/components/Navbar";       
+import Navbar from "@/components/Navbar";
 
 export default function InscriptionPage() {
+  // State hooks to store form data
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [gender, setGender] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Prepare data to send
+    const data = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      gender,
+      birthdate: birthDate,
+      phone,
+      password,
+    };
+
+    try {
+      const res = await fetch('http://localhost:3750/api/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        // handle errors from server
+        const errorData = await res.json();
+        alert(`Error: ${errorData.error || 'Something went wrong'}`);
+        return;
+      }
+
+      alert('User created successfully!');
+      // Optionally redirect or clear form here
+
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('Failed to create user');
+    }
+  };
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Blurred Full Background */}
@@ -22,26 +71,32 @@ export default function InscriptionPage() {
       {/* Centered Content */}
       <div className="relative flex min-h-screen items-center justify-center px-4 py-8 z-10">
         <div className="flex w-full max-w-4xl flex-col md:flex-row overflow-hidden rounded-3xl shadow-2xl bg-white/80 backdrop-blur-lg min-h-[700px]">
-          
+
           {/* Left: Form */}
           <div className="w-full md:w-1/2 p-8 md:p-12">
             <h2 className="mb-6 text-2xl font-bold text-gray-900">Create an Account</h2>
-            <form className="space-y-4">
-              
+            <form className="space-y-4" onSubmit={handleSubmit}>
+
               {/* First Name & Last Name */}
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700">First Name</label>
                   <input
                     type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
+                    required
                   />
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700">Last Name</label>
                   <input
                     type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
+                    required
                   />
                 </div>
               </div>
@@ -51,7 +106,10 @@ export default function InscriptionPage() {
                 <label className="block text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
+                  required
                 />
               </div>
 
@@ -60,19 +118,24 @@ export default function InscriptionPage() {
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700">Gender</label>
                   <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
-                    defaultValue=""
+                    required
                   >
                     <option value="" disabled className='text-gray-700'>Select gender</option>
-                    <option>Male</option>
-                    <option>Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
                   </select>
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700">Birth Date</label>
                   <input
                     type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
+                    required
                   />
                 </div>
               </div>
@@ -82,8 +145,11 @@ export default function InscriptionPage() {
                 <label className="block text-sm font-medium text-gray-700">Phone Number</label>
                 <input
                   type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
                   placeholder="+1234567890"
+                  required
                 />
               </div>
 
@@ -92,7 +158,10 @@ export default function InscriptionPage() {
                 <label className="block text-sm font-medium text-gray-700">Password</label>
                 <input
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-gray-400 px-4 py-2 text-sm shadow-sm focus:border-gray-800 focus:outline-none text-black"
+                  required
                 />
               </div>
 
